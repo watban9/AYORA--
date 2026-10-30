@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق أيورا للقرآن الكريم</title>
+    <!-- أيقونة الموقع (Favicon) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231b4d3e%22/><text x=%2250%%22 y=%2255%%22 font-size=%2250%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23d4af37%22>📖</text></svg>">
+    <style>
+        :root {
+            --bg-color: #f9f9f9;
+            --text-color: #2c2c2c;
+            --header-bg: #ffffff;
+            --header-border: #e0e0e0;
+            --accent-gold: #c5a059;
+            --accent-green: #1b4d3e;
+            --controls-bg: #f1f1f1;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --header-bg: #1f1f1f;
+            --header-border: #333333;
+            --accent-gold: #d4af37;
+            --accent-green: #2e7d32;
+            --controls-bg: #1a1a1a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; transition: background 0.3s, color 0.3s; }
+        body { background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; }
+        
+        header { 
+            background-color: var(--header-bg); 
+            padding: 15px; 
+            text-align: center; 
+            font-size: 22px; 
+            font-weight: bold; 
+            border-bottom: 2px solid var(--accent-gold); 
+            color: var(--accent-gold); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 10px; margin: 0 auto; }
+        .logo-icon { 
+            width: 35px; height: 35px; background: var(--accent-green); color: var(--accent-gold); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid var(--accent-gold);
+        }
+
+        .controls { display: flex; justify-content: center; align-items: center; padding: 12px; background: var(--controls-bg); border-bottom: 1px solid var(--header-border); gap: 10px; flex-wrap: wrap; }
+        
+        select, button { 
+            padding: 8px 14px; 
+            background: var(--header-bg); 
+            color: var(--text-color); 
+            border: 1px solid var(--accent-gold); 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        
+        select:focus, button:focus { outline: none; box-shadow: 0 0 5px var(--accent-gold); }
+        
+        .theme-btn {
+            background: var(--accent-green);
+            color: #fff;
+            border: none;
+        }
+
+        .viewer { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; background: var(--bg-color); padding: 10px; }
+        .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; border: 2px solid var(--accent-gold); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .nav-buttons { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--header-bg); border-top: 1px solid var(--header-border); }
+        .nav-buttons button { background: var(--accent-gold); color: #fff; border: none; }
+        
+        audio { width: 100%; background: var(--header-bg); border-top: 1px solid var(--header-border); }
+    </style>
+</head>
+<body data-theme="light">
+
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">أ</div>
+            <span>AYORA - آيورا للقرآن الكريم</span>
+        </div>
+        <button class="theme-btn" onclick="toggleTheme()">الوضع الليلي/النهاري</button>
+    </header>
+
+    <div class="controls">
+        <label for="surahSelect">السورة:</label>
+        <select id="surahSelect" onchange="changeSurah()"></select>
+        
+        <label for="reciterSelect">القارئ:</label>
+        <select id="reciterSelect" onchange="changeReciter()"></select>
+    </div>
+
+    <div class="viewer">
+        <img id="quranPage" src="" alt="صفحة المصحف">
+    </div>
+
+    <audio id="audioPlayer" controls></audio>
+
+    <div class="nav-buttons">
+        <button onclick="prevPage()">الصفحة السابقة</button>
+        <span id="pageInfo" style="font-weight: bold;">صفحة 1</span>
+        <button onclick="nextPage()">الصفحة التالية</button>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const totalPages = 604;
+
+        const reciters = [
+            { name: "مشاري العفاسي", server: "https://server8.mp3quran.net/afs/" },
+            { name: "عبد الباسط عبد الصمد", server: "https://server7.mp3quran.net/abdulsamad/" },
+            { name: "محمود خليل الحصري", server: "https://server13.mp3quran.net/husr/" },
+            { name: "المنشاوي", server: "https://server10.mp3quran.net/minsh/" },
+            { name: "سعد الغامدي", server: "https://server7.mp3quran.net/s_gmd/" }
+        ];
+
+        const surahs = [
+            { name: "الفاتحة", page: 1 },
+            { name: "البقرة", page: 2 },
+            { name: "آل عمران", page: 50 },
+            { name: "النساء", page: 77 },
+            { name: "المائدة", page: 106 },
+            { name: "الأنعام", page: 128 },
+            { name: "الأعراف", page: 151 },
+            { name: "الأنفال", page: 177 },
+            { name: "التوبة", page: 187 },
+            { name: "يونس", page: 208 }
+        ];
+
+        function init() {
+            const surahSel = document.getElementById('surahSelect');
+            surahs.forEach((s) => {
+                let opt = document.createElement('option');
+                opt.value = s.page;
+                opt.text = s.name;
+                surahSel.appendChild(opt);
+            });
+
+            const reciterSel = document.getElementById('reciterSelect');
+            reciters.forEach((r) => {
+                let opt = document.createElement('option');
+                opt.value = r.server;
+                opt.text = r.name;
+                reciterSel.appendChild(opt);
+            });
+
+            loadPage(1);
+        }
+
+        function loadPage(page) {
+            currentPage = page;
+            let formattedPage = String(page).padStart(3, '0');
+            document.getElementById('quranPage').src = `https://www.quranapp.org/pages/p${formattedPage}.png`;
+            document.getElementById('pageInfo').innerText = `صفحة ${currentPage}`;
+            updateAudio();
+        }
+
+        function updateAudio() {
+            let server = document.getElementById('reciterSelect').value;
+            let trackNum = String(Math.min(currentPage, 114)).padStart(3, '0');
+            document.getElementById('audioPlayer').src = server + trackNum + ".mp3";
+        }
+
+        function changeSurah() {
+            let page = parseInt(document.getElementById('surahSelect').value);
+            loadPage(page);
+        }
+
+        function changeReciter() {
+            updateAudio();
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                loadPage(currentPage + 1);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                loadPage(currentPage - 1);
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'light') {
+                body.setAttribute('data-theme', 'dark');
+            } else {
+                body.setAttribute('data-theme', 'light');
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
